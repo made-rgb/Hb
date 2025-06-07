@@ -1,0 +1,42 @@
+async function uploadUguu(buffer, filename) {
+  const form = new FormData();
+  form.append('files[]', buffer, { filename });
+
+  const { data } = await axios.post('https://uguu.se/upload.php', form, {
+    headers: form.getHeaders(),
+  });
+
+  if (!data.files || !data.files[0]) throw 'Upload gambar gagal.';
+  return data.files[0].url;
+}
+
+exports.run = {
+  usage: ['remini'],
+  hidden: ['hd'],
+  use: 'reply atau kirim gambar',
+  category: 'ai',
+  async: async (m, { kuromi }) => {
+    let q = m.quoted ? m.quoted : m;
+    let mime = (q.msg || q).mimetype || '';
+
+    if (/image\/(jpe?g|png)/.test(mime)) {
+      kuromi.sendReact(m.chat, '🕒', m.key);
+      let media = await q.download();
+      let url = await uploadUguu(media, 'enhance.jpg');
+
+      let { data } = await axios.get(`https://api.kuromi.my.id/convert/upscale?url=${encodeURIComponent(url)}`);
+      let resultUrl = data?.result?.data?.downloadUrls?.[0];
+
+      if (!resultUrl) return m.reply(global.mess.error.api);
+
+      kuromi.sendMessage(m.chat, {
+        image: { url: resultUrl },
+        caption: '_Gambar berhasil diperjelas!_'
+      }, { quoted: m, ephemeralExpiration: m.expiration });
+    } else {
+      m.reply(`Reply gambar atau kirim gambar dengan caption *${m.cmd}*`);
+    }
+  },
+  premium: true,
+  limit: true
+};100000000
